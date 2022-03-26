@@ -40,7 +40,7 @@ class Post(models.Model):
         help_text='Группа, к которой будет относиться пост',
     )
     image = models.ImageField(
-        'Картинка',
+        verbose_name='Картинка',
         upload_to='posts/',
         null=True,
         blank=True,
@@ -79,9 +79,16 @@ class Follow(models.Model):
         User,
         on_delete=models.CASCADE,
         related_name='follower',
+        null=True
     )
     author = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
         related_name='following'
     )
+
+    class Meta:
+        models.UniqueConstraint(
+            fields=('user', 'author'),
+            name='follow',
+        )

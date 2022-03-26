@@ -9,7 +9,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
-from posts.models import Comment, Group, Post
+from posts.models import Comment, Group, Post, Follow
 
 User = get_user_model()
 TEMP_MEDIA_ROOT = tempfile.mkdtemp(dir=settings.BASE_DIR)
@@ -20,6 +20,7 @@ class PostPagesTests(TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
+        cls.user_1 = User.objects.create(username='ben')
         cls.user = User.objects.create_user(username='auth')
         cls.group = Group.objects.create(
             title='Тестовая группа',
@@ -80,6 +81,15 @@ class PostPagesTests(TestCase):
             {'post_id': cls.post.pk},
             'posts/post_detail.html',
         )
+        cls.follow_index = ('posts:follow_index')
+        cls.follow = (
+            'posts:profile_follow',
+            {'username': cls.user.username}
+        )
+        cls.unfollow = (
+            'posts:profile_unfollow',
+            {'username': cls.user.username}
+        )
 
     @classmethod
     def tearDownClass(cls):
@@ -90,6 +100,8 @@ class PostPagesTests(TestCase):
         self.guest_client = Client()
         self.authorized_client = Client()
         self.authorized_client.force_login(self.user)
+        self.client = Client()
+        self.client.force_login(self.user_1)
 
     def method_test_context(self, expected, actual, reverse_name):
         response = self.authorized_client.get(reverse_name)
@@ -117,14 +129,12 @@ class PostPagesTests(TestCase):
             self.create_page,
             self.edit_page,
         )
-        templates_pages = {}
-        for page in pages:
-            url, args, html = page
-            templates_pages[reverse(url, kwargs=args)] = html
-        for reverse_name, template in templates_pages.items():
-            with self.subTest(reverse_name=reverse_name):
-                response = self.authorized_client.get(reverse_name)
-                self.assertTemplateUsed(response, template)
+        for url, args, html in pages:
+            with self.subTest(reverse_name=reverse(url, kwargs=args)):
+                response = self.authorized_client.get(
+                    reverse(url, kwargs=args)
+                )
+                self.assertTemplateUsed(response, html)
 
     def test_index_profile_show_correct_context(self):
         """Шаблоны index, profile, detail
@@ -262,3 +272,64 @@ class PostPagesTests(TestCase):
         )
         self.assertContains(response, comment.text)
         self.assertContains(response, comment.author)
+
+    def test_user_follow(self):
+        """Авторизованный пользователь может
+        подписываться на других пользователей"""
+
+        url, args = self.follow
+        self.client.get(reverse(url, kwargs=args))
+        user_follow = Follow.objects.filter(
+            user=self.user_1,
+            author=self.user
+        )
+        self.assertTrue(user_follow.exists())
+
+    def test_user_unfollow(self):
+        """Авторизованный пользователь может
+        отписываться от других пользователей"""
+
+        url, args = self.unfollow
+        Follow.objects.create(
+            user=self.user_1,
+            author=self.user
+        )
+        self.client.get(reverse(url, kwargs=args))
+        user_unfollow = Follow.objects.filter(
+            user=self.user_1,
+            author=self.user
+        )
+        self.assertFalse(user_unfollow.exists())
+
+    def test_follow_in_pages_users(self):
+        """Новая запись пользователя появляется в
+        ленте тех, кто на него подписан"""
+
+        expected_post = self.post
+        url, args = self.follow
+        self.client.get(reverse(url, kwargs=args))
+        response = self.client.get(reverse(self.follow_index))
+        self.assertContains(response, expected_post)
+
+    def test_follow_not_in_pages_users(self):
+        """Новая запись пользователя не появляется в
+        ленте тех, кто на него не подписан"""
+
+        user_3 = User.objects.create(username='user')
+        self.client_user_3 = Client()
+        self.client_user_3.force_login(user_3)
+        expected_post = self.post
+        response = self.client_user_3.get(reverse(self.follow_index))
+        self.assertNotContains(response, expected_post)
+
+    def test_cache_index_page(self):
+        """Проверка работы кэша на главной странице"""
+
+        url, _, _ = self.index_page
+        response_1 = self.guest_client.get(reverse(url))
+        Post.objects.create(author=self.user, text='text_1')
+        response_2 = self.guest_client.get(reverse(url))
+        self.assertEqual(response_1.content, response_2.content)
+        cache.clear()
+        response_2 = self.guest_client.get(reverse(url))
+        self.assertNotEqual(response_1.content, response_2.content)

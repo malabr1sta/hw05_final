@@ -90,6 +90,7 @@ class PostCreatFormTests(TestCase):
         self.assertEqual(post.author, self.post.author)
         self.assertEqual(post.text, form_data['text'])
         self.assertEqual(post.group.pk, form_data['group'])
+        self.assertEqual(post.image, 'posts/small.gif')
 
     def test_post_edit(self):
         """Валидная форма редактирует пост"""
