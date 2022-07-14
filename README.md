@@ -1,3 +1,24 @@
-# hw05_final
+yatube_project.
+Социальная сеть блогеров
+Описание:
+Это будет социальная сеть для публикации личных дневников. Пользователи смогут создать свою страницу. Пользователи так-же смогут заходить на чужие страницы, и посмотреть все записи других авторов, подписаться на них и комментировать их записи. Автор может выбрать имя и уникальный адрес для своей страницы.
+Технологии:
+Python 3.8.10
+Django 2.2.19
+Запуск проекта в dev-режиме
+Установите и активируйте виртуальное окружение
 
-[![CI](https://github.com/yandex-praktikum/hw05_final/actions/workflows/python-app.yml/badge.svg?branch=master)](https://github.com/yandex-praktikum/hw05_final/actions/workflows/python-app.yml)
+установите зависимости из файла requirements.txt
+
+pip install -r requirements.txt
+
+В папке с файлом manage.py выполните команду:
+
+python3 manage.py runserver
+
+Для Windos:
+
+python manage.py runserver
+
+Авторы
+Марчиладзе Г.Д.
